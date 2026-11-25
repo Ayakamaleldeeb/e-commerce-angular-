@@ -2,58 +2,56 @@ import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { combineLatest } from 'rxjs';
+import { ProductCardComponent } from './product-card.component';
 import { StoreService, Brand, Category, Product } from './store.service';
 
 @Component({
   selector: 'app-catalog',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, ProductCardComponent],
   template: `
-    <section class="page-shell">
-      <div class="breadcrumbs"><a routerLink="/">Home</a><span>/</span><span>{{ title }}</span></div>
-      <header class="page-heading">
-        <div><p class="eyebrow">{{ eyebrow }}</p><h1>{{ title }}</h1><p class="muted">{{ description }}</p></div>
-        <span class="result-count" *ngIf="kind === 'products' && !loading">{{ products.length }} products</span>
-      </header>
+    <section class="page-banner">
+      <div class="page-shell">
+        <div class="breadcrumbs light"><a routerLink="/">Home</a><span>/</span><span>{{ title }}</span></div>
+        <div class="banner-title">
+          <span class="banner-icon"><i [class]="icon"></i></span>
+          <div><h1>{{ title }}</h1><p>{{ description }}</p></div>
+        </div>
+      </div>
+    </section>
 
+    <section class="page-shell page-body">
       <p class="feedback error" *ngIf="error">{{ error }}</p>
-      <div class="loading-state" *ngIf="loading"><span class="spinner"></span> Finding the good stuff…</div>
+      <div class="loading-state" *ngIf="loading"><span class="spinner"></span> Loading…</div>
 
-      <div class="brand-grid" *ngIf="kind === 'brands' && !loading">
-        <a class="brand-tile" *ngFor="let brand of brands" [routerLink]="['/brands', brand._id]">
-          <img [src]="brand.image || placeholder" [alt]="brand.name" loading="lazy">
-          <span>{{ brand.name }}</span><small>Explore collection →</small>
+      <div class="toolbar" *ngIf="showProducts && !loading">
+        <span>Showing <b>{{ products.length }}</b> products</span>
+        <a class="link-arrow" [routerLink]="kind === 'brand-detail' ? '/brands' : '/categories'" *ngIf="kind !== 'products'"><i class="fa-solid fa-arrow-left"></i> Back to {{ kind === 'brand-detail' ? 'brands' : 'categories' }}</a>
+      </div>
+
+      <div class="tile-grid" *ngIf="kind === 'brands' && !loading">
+        <a class="tile brand" *ngFor="let brand of brands" [routerLink]="['/brands', brand._id]">
+          <span class="tile-img"><img [src]="brand.image || placeholder" [alt]="brand.name" loading="lazy"></span>
+          <strong>{{ brand.name }}</strong><small>View Products <i class="fa-solid fa-arrow-right"></i></small>
         </a>
         <p class="empty-state" *ngIf="!brands.length">No brands to show right now.</p>
       </div>
 
-      <div class="category-grid" *ngIf="kind === 'categories' && !loading">
-        <a class="category-tile" *ngFor="let category of categories" [routerLink]="['/categories', category._id]">
-          <img [src]="category.image || placeholder" [alt]="category.name" loading="lazy">
-          <span>{{ category.name }}</span>
+      <div class="tile-grid" *ngIf="kind === 'categories' && !loading">
+        <a class="tile" *ngFor="let category of categories" [routerLink]="['/categories', category._id]">
+          <span class="tile-img cover"><img [src]="category.image || placeholder" [alt]="category.name" loading="lazy"></span>
+          <strong>{{ category.name }}</strong><small>View Products <i class="fa-solid fa-arrow-right"></i></small>
         </a>
         <p class="empty-state" *ngIf="!categories.length">No categories to show right now.</p>
       </div>
 
-      <section class="collection-banner" *ngIf="(kind === 'brand-detail' || kind === 'category-detail') && !loading">
-        <div><span class="eyebrow">CURATED FOR YOU</span><h2>{{ collectionName }}</h2><p>Thoughtful picks, everyday favourites, all in one place.</p></div>
-        <img [src]="collectionImage || placeholder" [alt]="collectionName">
-      </section>
-
       <div class="product-grid" *ngIf="showProducts && !loading">
-        <article class="product-card" *ngFor="let product of products">
-          <a class="product-picture" [routerLink]="['/product', product._id]">
-            <img [src]="product.imageCover || placeholder" [alt]="product.title" loading="lazy">
-            <span class="discount" *ngIf="product.priceAfterDiscount">SAVE {{ discount(product) }}%</span>
-          </a>
-          <div class="product-info">
-            <a class="product-category" [routerLink]="product.category ? ['/categories', product.category._id] : '/categories'">{{ product.category?.name || 'Fresh picks' }}</a>
-            <a class="product-title" [routerLink]="['/product', product._id]">{{ product.title }}</a>
-            <div class="rating"><span>★</span> {{ product.ratingsAverage || 4.5 }} <small>({{ product.ratingsQuantity || 0 }})</small></div>
-            <div class="product-bottom"><strong>{{ (product.priceAfterDiscount || product.price) | currency:'EGP ':'symbol':'1.0-0' }}</strong><del *ngIf="product.priceAfterDiscount">{{ product.price | currency:'EGP ':'symbol':'1.0-0' }}</del><a class="add-mini" [routerLink]="['/product', product._id]" aria-label="View product">+</a></div>
-          </div>
-        </article>
-        <p class="empty-state" *ngIf="!products.length">No products match this collection yet.</p>
+        <app-product-card *ngFor="let product of products" [product]="product" />
+        <div class="empty-state" *ngIf="!products.length">
+          <span class="empty-icon"><i class="fa-solid fa-box-open"></i></span>
+          <h2>No products found</h2><p>Try a different search or browse our categories.</p>
+          <a class="btn btn-primary" routerLink="/products">View All Products</a>
+        </div>
       </div>
     </section>
   `,
@@ -68,6 +66,7 @@ export class CatalogComponent implements OnInit {
   title = 'All products';
   eyebrow = 'MADE FOR YOUR EVERYDAY';
   description = 'Find something good for every day.';
+  icon = 'fa-solid fa-store';
   collectionName = '';
   collectionImage = '';
   loading = true;
@@ -102,9 +101,10 @@ export class CatalogComponent implements OnInit {
     this.error = '';
     this.baseProducts = [];
     if (this.kind === 'brands') {
-      this.title = 'Our brands';
+      this.icon = 'fa-solid fa-tags';
+      this.title = 'All Brands';
       this.eyebrow = 'BRANDS WE LOVE';
-      this.description = 'Meet the makers behind your everyday favourites.';
+      this.description = 'Shop your favorite brands in one place';
       this.store.brands().subscribe({
         next: (response) => { this.brands = response.data; this.changeDetector.markForCheck(); },
         error: (error: unknown) => this.fail(error),
@@ -113,9 +113,10 @@ export class CatalogComponent implements OnInit {
       return;
     }
     if (this.kind === 'categories') {
-      this.title = 'Shop by category';
+      this.icon = 'fa-solid fa-layer-group';
+      this.title = 'All Categories';
       this.eyebrow = 'A LITTLE BIT OF EVERYTHING';
-      this.description = 'Browse our handpicked collections and find your next favourite.';
+      this.description = 'Browse our wide range of categories';
       this.store.categories().subscribe({
         next: (response) => { this.categories = response.data; this.changeDetector.markForCheck(); },
         error: (error: unknown) => this.fail(error),
@@ -124,9 +125,10 @@ export class CatalogComponent implements OnInit {
       return;
     }
 
-    this.title = 'All products';
+    this.icon = this.kind === 'products' ? 'fa-solid fa-box-open' : this.kind === 'brand-detail' ? 'fa-solid fa-tag' : 'fa-solid fa-layer-group';
+    this.title = 'All Products';
     this.eyebrow = 'MADE FOR YOUR EVERYDAY';
-    this.description = 'Thoughtful picks, everyday favourites, all in one place.';
+    this.description = 'Explore our complete product collection';
     let collectionRequest = this.store.products();
     if (this.kind === 'brand-detail' && id) {
       this.store.brand(id).subscribe({
@@ -172,7 +174,7 @@ export class CatalogComponent implements OnInit {
         !this.search || this.kind !== 'products' || product.title.toLowerCase().includes(this.search),
       );
       if (this.kind === 'products') {
-        this.title = this.search ? `Search results for “${this.search}”` : 'All products';
+        this.title = this.search ? `Search results for “${this.search}”` : 'All Products';
         this.eyebrow = this.search ? 'SEARCH' : 'MADE FOR YOUR EVERYDAY';
       }
     }

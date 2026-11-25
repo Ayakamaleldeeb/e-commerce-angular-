@@ -1,10 +1,11 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, tap } from 'rxjs';
 
 export interface ApiResponse<T> {
   data: T;
   results?: number;
+  numOfCartItems?: number;
 }
 
 export interface Category {
@@ -57,6 +58,8 @@ export interface Order {
   isPaid: boolean;
   isDelivered: boolean;
   cartItems?: CartItem[];
+  paymentMethodType?: string;
+  shippingAddress?: ShippingAddress;
 }
 
 export interface CheckoutSessionResponse {
@@ -80,6 +83,20 @@ export interface AuthResponse {
 export class StoreService {
   private readonly http = inject(HttpClient);
   readonly apiUrl = 'https://ecommerce.routemisr.com/api/v1';
+  readonly cartCount = signal(0);
+  readonly wishlistCount = signal(0);
+  readonly toastMessage = signal('');
+  private toastTimer: ReturnType<typeof setTimeout> | undefined;
+
+  toast(message: string): void {
+    this.toastMessage.set(message);
+    clearTimeout(this.toastTimer);
+    this.toastTimer = setTimeout(() => this.toastMessage.set(''), 2600);
+  }
+
+  private readonly trackCart = (response: ApiResponse<Cart>): void => {
+    this.cartCount.set(response.numOfCartItems ?? response.data?.products?.length ?? 0);
+  };
 
   products(): Observable<ApiResponse<Product[]>> {
     return this.http.get<ApiResponse<Product[]>>(`${this.apiUrl}/products`);
@@ -130,31 +147,35 @@ export class StoreService {
   }
 
   cart(): Observable<ApiResponse<Cart>> {
-    return this.http.get<ApiResponse<Cart>>(`${this.apiUrl}/cart`);
+    return this.http.get<ApiResponse<Cart>>(`${this.apiUrl}/cart`).pipe(tap(this.trackCart));
   }
 
   addToCart(productId: string): Observable<ApiResponse<Cart>> {
-    return this.http.post<ApiResponse<Cart>>(`${this.apiUrl}/cart`, { productId });
+    return this.http.post<ApiResponse<Cart>>(`${this.apiUrl}/cart`, { productId }).pipe(tap(this.trackCart));
   }
 
   removeFromCart(productId: string): Observable<ApiResponse<Cart>> {
-    return this.http.delete<ApiResponse<Cart>>(`${this.apiUrl}/cart/${productId}`);
+    return this.http.delete<ApiResponse<Cart>>(`${this.apiUrl}/cart/${productId}`).pipe(tap(this.trackCart));
   }
 
   updateCartItem(productId: string, count: number): Observable<ApiResponse<Cart>> {
-    return this.http.put<ApiResponse<Cart>>(`${this.apiUrl}/cart/${productId}`, { count });
+    return this.http.put<ApiResponse<Cart>>(`${this.apiUrl}/cart/${productId}`, { count }).pipe(tap(this.trackCart));
+  }
+
+  clearCart(): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${this.apiUrl}/cart`).pipe(tap(() => this.cartCount.set(0)));
   }
 
   wishlist(): Observable<ApiResponse<Product[]>> {
-    return this.http.get<ApiResponse<Product[]>>(`${this.apiUrl}/wishlist`);
+    return this.http.get<ApiResponse<Product[]>>(`${this.apiUrl}/wishlist`).pipe(tap((r) => this.wishlistCount.set(r.data?.length ?? 0)));
   }
 
   addToWishlist(productId: string): Observable<ApiResponse<Product[]>> {
-    return this.http.post<ApiResponse<Product[]>>(`${this.apiUrl}/wishlist`, { productId });
+    return this.http.post<ApiResponse<Product[]>>(`${this.apiUrl}/wishlist`, { productId }).pipe(tap((r) => this.wishlistCount.set(r.data?.length ?? 0)));
   }
 
   removeFromWishlist(productId: string): Observable<ApiResponse<Product[]>> {
-    return this.http.delete<ApiResponse<Product[]>>(`${this.apiUrl}/wishlist/${productId}`);
+    return this.http.delete<ApiResponse<Product[]>>(`${this.apiUrl}/wishlist/${productId}`).pipe(tap((r) => this.wishlistCount.set(r.data?.length ?? 0)));
   }
 
   orders(userId: string): Observable<ApiResponse<Order[]>> {
@@ -192,6 +213,8 @@ export class StoreService {
   clearSession(): void {
     localStorage.removeItem('freshcart-token');
     localStorage.removeItem('freshcart-user');
+    this.cartCount.set(0);
+    this.wishlistCount.set(0);
   }
 }
 

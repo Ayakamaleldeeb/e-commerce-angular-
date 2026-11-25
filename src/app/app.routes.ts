@@ -12,7 +12,7 @@ const authGuard: CanActivateFn = (_route, state) => {
 };
 
 export const routes: Routes = [
-  { path: '', component: HomeComponent, title: 'FreshCart — Good food. Good mood.' },
+  { path: '', component: HomeComponent, title: 'FreshCart — Fresh Products Delivered to your Door' },
   { path: 'products', component: CatalogComponent, data: { kind: 'products' }, title: 'Shop all products — FreshCart' },
   { path: 'products/:id', component: ProductDetailComponent, title: 'Product details — FreshCart' },
   { path: 'product/:id', component: ProductDetailComponent, title: 'Product details — FreshCart' },

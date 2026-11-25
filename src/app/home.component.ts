@@ -1,97 +1,174 @@
-import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { StoreService, Brand, Category, Product } from './store.service';
+import { ProductCardComponent } from './product-card.component';
+import { Category, Product, StoreService } from './store.service';
+
+interface Slide {
+  title: string;
+  text: string;
+  image: string;
+}
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [FormsModule, RouterLink, ProductCardComponent],
   template: `
-    <section class="home-hero page-shell">
-      <div class="hero-copy">
-        <span class="hero-pill"><i></i> FRESH FINDS, EVERY DAY</span>
-        <h1>Good food.<br><em>Good mood.</em></h1>
-        <p>Everyday essentials and little luxuries, picked just for you. Make your next shop a happy one.</p>
-        <div class="hero-actions"><a class="primary-btn" routerLink="/products">Shop all products <span>→</span></a><a class="text-btn" routerLink="/categories">Explore categories</a></div>
-        <div class="hero-note"><span class="avatar-stack"><b>🥑</b><b>🍓</b><b>🍋</b></span><span><strong>Fresh choices</strong><small>for your everyday</small></span></div>
-      </div>
-      <div class="hero-art">
-        <div class="hero-circle"></div>
-        <img src="https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1100&q=85" alt="Fresh produce at the market">
-        <div class="hero-sticker"><span>picked<br>with care</span><b>✳</b></div>
-        <div class="floating-note"><span>✦</span> A little freshness goes a long way</div>
-      </div>
-    </section>
-
-    <section class="page-shell home-section">
-      <div class="section-heading"><div><p class="eyebrow">FIND YOUR FAVOURITES</p><h2>Shop by category</h2></div><a class="text-btn" routerLink="/categories">All categories <span>→</span></a></div>
-      <p class="feedback error" *ngIf="categoryError">{{ categoryError }}</p>
-      <div class="category-row">
-        <a class="category-card" *ngFor="let category of categories; let i = index" [routerLink]="['/categories', category._id]">
-          <div class="category-image" [ngClass]="'tone-' + (i % 5)"><img [src]="category.image || placeholder" [alt]="category.name" loading="lazy"></div>
-          <strong>{{ category.name }}</strong><small>Explore collection</small>
-        </a>
-        <div class="loading-state" *ngIf="!categories.length && !categoryError"><span class="spinner"></span></div>
-      </div>
-    </section>
-
-    <section class="feature-strip page-shell">
-      <div><span>✳</span><strong>Good things, thoughtfully picked</strong><small>Quality you'll feel good about</small></div>
-      <div><span>♡</span><strong>Find your new favourites</strong><small>Fresh finds for every day</small></div>
-      <div><span>↗</span><strong>Simple, joyful shopping</strong><small>Everything in one happy place</small></div>
-    </section>
-
-    <section class="page-shell home-section">
-      <div class="section-heading"><div><p class="eyebrow">THE CROWD-PLEASERS</p><h2>Popular right now</h2></div><a class="text-btn" routerLink="/products">Shop all <span>→</span></a></div>
-      <p class="feedback error" *ngIf="productError">{{ productError }}</p>
-      <div class="product-grid">
-        <article class="product-card" *ngFor="let product of featured">
-          <a class="product-picture" [routerLink]="['/product', product._id]"><img [src]="product.imageCover || placeholder" [alt]="product.title" loading="lazy"><span class="discount" *ngIf="product.priceAfterDiscount">SPECIAL PICK</span></a>
-          <div class="product-info">
-            <a class="product-category" [routerLink]="product.category ? ['/categories', product.category._id] : '/categories'">{{ product.category?.name || 'Fresh picks' }}</a>
-            <a class="product-title" [routerLink]="['/product', product._id]">{{ product.title }}</a>
-            <div class="rating"><span>★</span> {{ product.ratingsAverage || 4.5 }} <small>({{ product.ratingsQuantity || 0 }})</small></div>
-            <div class="product-bottom"><strong>{{ (product.priceAfterDiscount || product.price) | currency:'EGP ':'symbol':'1.0-0' }}</strong><a class="add-mini" [routerLink]="['/product', product._id]" aria-label="View product">+</a></div>
+    <section class="hero" aria-label="Featured offers">
+      @for (slide of slides; track slide.title; let i = $index) {
+        <div class="hero-slide" [class.active]="i === current()" [style.background-image]="'url(' + slide.image + ')'">
+          <div class="page-shell hero-content">
+            <h1>{{ slide.title }}</h1>
+            <p>{{ slide.text }}</p>
+            <div class="hero-actions">
+              <a class="btn btn-white" routerLink="/products">Shop Now</a>
+              <a class="btn btn-ghost" routerLink="/categories">View Deals</a>
+            </div>
           </div>
-        </article>
-        <div class="loading-state" *ngIf="!featured.length && !productError"><span class="spinner"></span> Loading the good stuff…</div>
+        </div>
+      }
+      <button class="hero-arrow prev" type="button" (click)="go(-1)" aria-label="Previous slide"><i class="fa-solid fa-chevron-left"></i></button>
+      <button class="hero-arrow next" type="button" (click)="go(1)" aria-label="Next slide"><i class="fa-solid fa-chevron-right"></i></button>
+      <div class="hero-dots">
+        @for (slide of slides; track slide.title; let i = $index) {
+          <button type="button" [class.active]="i === current()" (click)="setSlide(i)" [attr.aria-label]="'Go to slide ' + (i + 1)"></button>
+        }
       </div>
     </section>
 
-    <section class="brand-band">
-      <div class="page-shell">
-        <div class="section-heading"><div><p class="eyebrow">GOOD COMPANY</p><h2>Brands we love</h2></div><a class="text-btn" routerLink="/brands">Meet all brands <span>→</span></a></div>
-        <p class="feedback error" *ngIf="brandError">{{ brandError }}</p>
-        <div class="brand-row"><a *ngFor="let brand of brands.slice(0, 6)" [routerLink]="['/brands', brand._id]"><img [src]="brand.image || placeholder" [alt]="brand.name" loading="lazy"><span>{{ brand.name }}</span></a></div>
+    <section class="page-shell feature-cards">
+      <div><span class="feature-icon blue"><i class="fa-solid fa-truck"></i></span><span><strong>Free Shipping</strong><small>On orders over 500 EGP</small></span></div>
+      <div><span class="feature-icon green"><i class="fa-solid fa-shield-halved"></i></span><span><strong>Secure Payment</strong><small>100% secure transactions</small></span></div>
+      <div><span class="feature-icon orange"><i class="fa-solid fa-arrow-rotate-left"></i></span><span><strong>Easy Returns</strong><small>14-day return policy</small></span></div>
+      <div><span class="feature-icon purple"><i class="fa-solid fa-headset"></i></span><span><strong>24/7 Support</strong><small>Dedicated support team</small></span></div>
+    </section>
+
+    <section class="page-shell home-section">
+      <div class="section-heading">
+        <h2>Shop By <span>Category</span></h2>
+        <a class="link-arrow" routerLink="/categories">View All Categories <i class="fa-solid fa-arrow-right"></i></a>
+      </div>
+      @if (categoryError()) { <p class="feedback error">{{ categoryError() }}</p> }
+      <div class="category-circles">
+        @for (category of categories(); track category._id) {
+          <a class="category-circle" [routerLink]="['/categories', category._id]">
+            <span class="circle-img"><img [src]="category.image" [alt]="category.name" loading="lazy"></span>
+            <strong>{{ category.name }}</strong>
+          </a>
+        } @empty {
+          @if (!categoryError()) { <div class="loading-state"><span class="spinner"></span></div> }
+        }
+      </div>
+    </section>
+
+    <section class="page-shell promo-grid">
+      <article class="promo green">
+        <span class="promo-pill"><i class="fa-solid fa-fire"></i> Deal of the Day</span>
+        <h3>Fresh Organic Fruits</h3>
+        <p>Get up to 40% off on selected organic fruits</p>
+        <div class="promo-offer"><strong>40% OFF</strong><span>Use code: <b>ORGANIC40</b></span></div>
+        <a class="btn btn-white small" routerLink="/products">Shop Now <i class="fa-solid fa-arrow-right"></i></a>
+      </article>
+      <article class="promo orange">
+        <span class="promo-pill"><i class="fa-solid fa-star"></i> New Arrivals</span>
+        <h3>Exotic Vegetables</h3>
+        <p>Discover our latest collection of premium vegetables</p>
+        <div class="promo-offer"><strong>25% OFF</strong><span>Use code: <b>FRESH25</b></span></div>
+        <a class="btn btn-white small" routerLink="/products">Explore Now <i class="fa-solid fa-arrow-right"></i></a>
+      </article>
+    </section>
+
+    <section class="page-shell home-section">
+      <div class="section-heading">
+        <h2>Featured <span>Products</span></h2>
+        <a class="link-arrow" routerLink="/products">View All Products <i class="fa-solid fa-arrow-right"></i></a>
+      </div>
+      @if (productError()) { <p class="feedback error">{{ productError() }}</p> }
+      <div class="product-grid">
+        @for (product of featured(); track product._id) {
+          <app-product-card [product]="product" />
+        } @empty {
+          @if (!productError()) { <div class="loading-state"><span class="spinner"></span> Loading products…</div> }
+        }
+      </div>
+    </section>
+
+    <section class="page-shell newsletter-wrap">
+      <div class="newsletter">
+        <div class="newsletter-main">
+          <div class="newsletter-badge"><span class="feature-icon solid"><i class="fa-regular fa-envelope"></i></span><span><b>NEWSLETTER</b><small>50,000+ subscribers</small></span></div>
+          <h2>Get the Freshest Updates <span>Delivered Free</span></h2>
+          <p>Weekly recipes, seasonal offers &amp; exclusive member perks.</p>
+          <div class="chips">
+            <span><i class="fa-solid fa-leaf"></i> Fresh Picks Weekly</span>
+            <span><i class="fa-solid fa-truck"></i> Free Delivery Codes</span>
+            <span><i class="fa-solid fa-tag"></i> Members-Only Deals</span>
+          </div>
+          <form class="subscribe" (submit)="$event.preventDefault(); subscribe()">
+            <input type="email" name="newsletter" [(ngModel)]="email" placeholder="you@example.com" aria-label="Email address" required>
+            <button class="btn btn-primary" type="submit">Subscribe <i class="fa-solid fa-arrow-right"></i></button>
+          </form>
+          <small class="fine-print"><i class="fa-solid fa-lock"></i> Unsubscribe anytime. No spam, ever.</small>
+        </div>
+        <div class="app-card">
+          <span class="app-pill"><i class="fa-solid fa-mobile-screen"></i> MOBILE APP</span>
+          <h3>Shop Faster on Our App</h3>
+          <p>Get app-exclusive deals &amp; 15% off your first order.</p>
+          <a class="store-btn" href="https://www.apple.com/app-store/" target="_blank" rel="noopener"><i class="fa-brands fa-apple"></i><span><small>DOWNLOAD ON THE</small>App Store</span></a>
+          <a class="store-btn" href="https://play.google.com" target="_blank" rel="noopener"><i class="fa-brands fa-google-play"></i><span><small>GET IT ON</small>Google Play</span></a>
+          <div class="app-rating"><span>★★★★★</span> 4.9 · 100K+ downloads</div>
+        </div>
       </div>
     </section>
   `,
 })
-export class HomeComponent implements OnInit {
+export class HomeComponent implements OnInit, OnDestroy {
   private readonly store = inject(StoreService);
-  private readonly changeDetector = inject(ChangeDetectorRef);
-  readonly placeholder = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=800&q=80';
-  categories: Category[] = [];
-  featured: Product[] = [];
-  brands: Brand[] = [];
-  categoryError = '';
-  productError = '';
-  brandError = '';
+  readonly slides: Slide[] = [
+    { title: 'Fresh Products Delivered to your Door', text: 'Get 20% off your first order', image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1800&q=80' },
+    { title: 'Premium Quality Guaranteed', text: 'Fresh from farm to your table', image: 'https://images.unsplash.com/photo-1488459716781-31db52582fe9?auto=format&fit=crop&w=1800&q=80' },
+    { title: 'Fast & Free Delivery', text: 'Same day delivery available', image: 'https://images.unsplash.com/photo-1607349913338-fca6f7fc42d0?auto=format&fit=crop&w=1800&q=80' },
+  ];
+  readonly current = signal(0);
+  readonly categories = signal<Category[]>([]);
+  readonly featured = signal<Product[]>([]);
+  readonly categoryError = signal('');
+  readonly productError = signal('');
+  email = '';
+  private timer: ReturnType<typeof setInterval> | undefined;
 
   ngOnInit(): void {
+    this.timer = setInterval(() => this.go(1), 6000);
     this.store.categories().subscribe({
-      next: (response) => { this.categories = response.data.slice(0, 5); this.changeDetector.markForCheck(); },
-      error: (error: unknown) => { this.categoryError = this.errorText(error); this.changeDetector.markForCheck(); },
+      next: (response) => this.categories.set(response.data),
+      error: (error: unknown) => this.categoryError.set(this.errorText(error)),
     });
     this.store.products().subscribe({
-      next: (response) => { this.featured = response.data.slice(0, 4); this.changeDetector.markForCheck(); },
-      error: (error: unknown) => { this.productError = this.errorText(error); this.changeDetector.markForCheck(); },
+      next: (response) => this.featured.set(response.data.slice(0, 20)),
+      error: (error: unknown) => this.productError.set(this.errorText(error)),
     });
-    this.store.brands().subscribe({
-      next: (response) => { this.brands = response.data; this.changeDetector.markForCheck(); },
-      error: (error: unknown) => { this.brandError = this.errorText(error); this.changeDetector.markForCheck(); },
-    });
+  }
+
+  ngOnDestroy(): void {
+    clearInterval(this.timer);
+  }
+
+  go(step: number): void {
+    this.current.set((this.current() + step + this.slides.length) % this.slides.length);
+  }
+
+  setSlide(index: number): void {
+    this.current.set(index);
+  }
+
+  subscribe(): void {
+    if (!/^\S+@\S+\.\S+$/.test(this.email)) {
+      this.store.toast('Please enter a valid email address');
+      return;
+    }
+    this.email = '';
+    this.store.toast('Thanks for subscribing!');
   }
 
   private errorText(error: unknown): string {
