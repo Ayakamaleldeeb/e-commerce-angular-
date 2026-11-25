@@ -1,0 +1,38 @@
+<div class="topline"><div class="page-shell topline-inner"><span>Little joys, delivered daily ✳</span><span>Curated for your everyday <b>·</b> Shop happy</span></div></div>
+<header class="site-header">
+  <div class="page-shell header-main">
+    <button class="menu-toggle" (click)="menuOpen = !menuOpen" aria-label="Toggle navigation">{{ menuOpen ? '×' : '☰' }}</button>
+    <a class="brand-mark" routerLink="/">fresh<span>cart</span><i>.</i></a>
+    <form class="search-bar" (submit)="$event.preventDefault(); searchProducts()"><span>⌕</span><input aria-label="Search products" placeholder="Search for something good…" [(ngModel)]="searchText" name="search"><button type="submit">Search</button></form>
+    <div class="header-actions">
+      <a class="header-action" routerLink="/wishlist" aria-label="Wishlist"><span>♡</span><small>Wishlist</small></a>
+      <a class="header-action" routerLink="/cart" aria-label="Cart"><span>♧</span><small>Cart</small></a>
+      <a class="header-account" [routerLink]="user ? '/orders' : '/login'"><span class="account-avatar">{{ user ? user.name.slice(0, 1).toUpperCase() : '♙' }}</span><span><small>{{ user ? 'Hello,' : 'Welcome' }}</small><strong>{{ user?.name || 'Sign in' }}</strong></span></a>
+    </div>
+  </div>
+  <nav class="main-nav" [class.open]="menuOpen">
+    <div class="page-shell nav-inner">
+      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Home</a>
+      <a routerLink="/products" routerLinkActive="active">Shop all</a>
+      <a routerLink="/categories" routerLinkActive="active">Categories</a>
+      <a routerLink="/brands" routerLinkActive="active">Brands</a>
+      <a routerLink="/orders" routerLinkActive="active" *ngIf="user">My orders</a>
+      <a routerLink="/change-password" *ngIf="user">Change password</a>
+      <button class="nav-signin" *ngIf="user" (click)="logout()">Sign out</button>
+      <a class="nav-signin" routerLink="/login" *ngIf="!user">Sign in / Register <span>↗</span></a>
+      <span class="nav-promise">Thoughtfully picked, just for you <b>✳</b></span>
+    </div>
+  </nav>
+</header>
+
+<main><router-outlet></router-outlet></main>
+
+<footer class="site-footer">
+  <div class="page-shell footer-grid">
+    <div class="footer-about"><a class="brand-mark footer-logo" routerLink="/">fresh<span>cart</span><i>.</i></a><p>Everyday essentials and little luxuries, thoughtfully picked for a happier everyday.</p><span class="footer-note">Made with a little extra care ✳</span></div>
+    <div><h3>Explore</h3><a routerLink="/products">Shop all products</a><a routerLink="/categories">Categories</a><a routerLink="/brands">Brands</a></div>
+    <div><h3>Your account</h3><a routerLink="/login">Sign in</a><a routerLink="/cart">Shopping cart</a><a routerLink="/wishlist">Wishlist</a><a routerLink="/orders">Order history</a></div>
+    <div class="footer-note-card"><span>✳</span><strong>A fresh little reminder</strong><p>The good stuff is in the everyday details.</p></div>
+  </div>
+  <div class="page-shell footer-bottom"><span>© 2026 FreshCart. Made for your everyday.</span><span>Good things, thoughtfully picked.</span></div>
+</footer>
